@@ -67,7 +67,6 @@ while True:
             window['-INPUT-'].update(len(input_files.split(';')))
         else:
              window['-INPUT-'].update('')
-        print(input_files)
 
     # Perform the search and extraction when 'Search and Extract' button is clicked
     if event == 'Search and Extract':
@@ -116,8 +115,8 @@ while True:
         pyperclip.copy(copyValues)
 
 # DEBUG: Test button
-    if event == 'Test':
-        result_popup('4', '6')
+    #if event == 'Test':
+    #    result_popup('4', '6')
     #     sg.popup(
     #            'Reports Found: ' + str(len([3,6])),
     #            '-'*58,
