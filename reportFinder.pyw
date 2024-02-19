@@ -52,7 +52,7 @@ def extractReportData(ids, files):
 left_part = [
     [sg.Text('Enter the IDs to search:', font=("Arial Bold", 10))],
     [sg.Multiline(key='-IDS-', expand_x=True, expand_y=True, size=(30,15))],
-    [sg.Radio("Report", "type", key='REPORT', default=True),
+    [sg.Radio("Expense", "type", key='EXPENSE', default=True),
      sg.Radio("Invoice", "type", key='INVOICE'), sg.Push(),
      sg.Checkbox("Payment File", key='PAYMENTCHECK'),
      sg.Push(), sg.Button("Generate DBSelect")],
@@ -124,16 +124,16 @@ while True:
         ids = [id.strip() for id in values['-IDS-'].split('\n')]
         ids = list(set(filter(None, ids)))
         
-        if values['REPORT']:
+        if values['EXPENSE']:
             if values['PAYMENTCHECK']:
-                sg.popup_scrolled(db_report_payment_script + format_ids(ids) + orderby_script, title="DBSelect for Report Payments")
+                sg.popup_scrolled(db_report_payment_script + format_ids(ids) + orderby_script, title="DBSelect for Expense Payments")
             else:
-                sg.popup_scrolled(db_report_script + format_ids(ids) + orderby_script, title="DBSelect for Reports")
+                sg.popup_scrolled(db_report_script + format_ids(ids) + orderby_script, title="DBSelect for Expense Reports")
         else:
             if values['PAYMENTCHECK']:
                 sg.popup_scrolled(db_invoice_payment_script + format_ids(ids) + orderby_script, title="DBSelect for Invoice Payments")
             else:
-                sg.popup_scrolled(db_invoice_script + format_ids(ids) + orderby_script, title="DBSelect for Invoices")
+                sg.popup_scrolled(db_invoice_script + format_ids(ids) + orderby_script, title="DBSelect for Invoice Reports")
 
     
     # Perform the search and extraction when 'Search and Extract' button is clicked
@@ -160,7 +160,7 @@ while True:
 
             if (len(ids_found) > 0):
                 # Write extracted lines to output file selected by suer
-                with open(output_file, 'w') as file:
+                with open(output_file, 'w', encoding='utf8') as file:
                     if values['HEADER']:
                         file.write('Header\n')
                     file.writelines(extracted_lines)
