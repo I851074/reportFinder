@@ -1,8 +1,11 @@
 import PySimpleGUI as sg
 import pyperclip
 import os
+import webbrowser
+import re
+import time
 
-# Functino to display a popup window with search results
+# Search and Extract Result popup
 def result_popup(foundCount, notfoundCount, outputFile):
     popup = sg.Window('Results', [[sg.Text('Reports Found: ' + foundCount, size=(30, 1))],
                           [sg.Text('Reports Not Found: ' + notfoundCount, size=(30, 1))],
@@ -13,6 +16,22 @@ def result_popup(foundCount, notfoundCount, outputFile):
         if action == 'Open File':
             os.startfile(outputFile)
             break
+        # Closes popup window
+        if action == sg.WINDOW_CLOSED or action == 'Close':
+            break
+    popup.close()
+
+# DBSELECT popup
+def db_popup(ids, script, title):
+    popup = sg.Window(title, [
+        [sg.Multiline(script + format_ids(ids) + orderby_script, expand_x=True, expand_y=True, key='-DBSELECT-')],
+        [sg.Button('Copy'), sg.Button('Close')]], modal=True, element_justification='r', keep_on_top=True, size=(500,300), resizable=True )
+
+    while True:
+        action, values = popup.read()
+
+        if action == 'Copy':
+            pyperclip.copy(values['-DBSELECT-'])
         # Closes popup window
         if action == sg.WINDOW_CLOSED or action == 'Close':
             break
@@ -43,10 +62,12 @@ def extractReportData(ids, files):
                             ids_found.append(id)
                     if found:
                         extracted_lines.append(line)
-    
+                        
     return ids_found, extracted_lines
 
-
+def urlFormat(string):
+    formatted = re.sub('[^A-Za-z0-9]+', '', string)
+    return formatted
 
 # GUI Layout: User input for report IDs, output file selection, function buttons
 left_part = [
@@ -66,32 +87,42 @@ left_part = [
      sg.Button('Exit')]
 ]
 
+# GUI Layout: Tenant search tab layout
+tenant_search = [
+    [sg.Text("Search Criteria:"), sg.Input(key='-ENTITYCODE-')],
+    [sg.Text('Tenant: '), sg.Text(key='tenant')],
+    [sg.Text('Client: '), sg.Text(key='client')],
+    [sg.Button('Search'), sg.Button('Open')],
+    [sg.Table(values=[], headings=['Tenant', 'Client Name', 'Entity'], key='-SEARCHRESULTS-', justification='center', enable_click_events=True, expand_x=True, enable_events=True, num_rows=15, visible=False)]
+
+]
+
 # GUI Layout: Table/List displaying report IDs NOT found
-right_part = [
-    [sg.Text('Report IDs NOT Found', font=("Arial Bold", 12), visible=True, expand_x=True, justification='center', key='-NOTFOUNDLABEL-')],
-    [sg.Table(values=[], headings=['Report ID'], 
+right_part = [[sg.Table(values=[], headings=['Report IDs Not Found'], 
               auto_size_columns=False, 
               display_row_numbers=False, 
               key='-NOTFOUND-', 
               expand_x=True, 
               expand_y=True,
-              def_col_width=40,
-              num_rows=10,
-              enable_events=True,
-              justification='left')],
+              enable_events=True)],
     [sg.Push(),
      sg.Button('Copy')]
 ]
 
 
-layout = [
-    [sg.Column(left_part, vertical_alignment='top'),
-    sg.VSeparator(),
-    sg.Column(right_part, vertical_alignment='top')]
-]
 
+
+
+tab_layout = [
+    [sg.TabGroup([
+        [sg.Tab('Tenant Search', tenant_search),
+         sg.Tab('Report Finder', left_part),
+         sg.Tab('Results', right_part, visible=False, key='RESULT_TAB')
+        ]
+    ])]
+]
 # Create the window
-window = sg.Window('Report Finder Tool', layout, resizable=True)
+window = sg.Window('Report Finder Tool', tab_layout, resizable=False)
 
 db_report_script = '''select distinct ct_report.REPORT_ID as 'Report ID', CT_JOB_DEFINITION_LANG.NAME as 'Job name', END_TIME as 'Run date', RUN_NUMBER as 'Run number', RECORDS_LOADED as 'Records' from ct_report join ct_journal on ct_report.rpt_key = ct_journal.rpt_key join CT_JOB_RUN on ct_journal.jr_key = CT_JOB_RUN.jr_key join CT_JOB_DEFINITION_LANG on CT_JOB_RUN.jd_key = CT_JOB_DEFINITION_LANG.jd_key where ct_report.REPORT_ID in '''
 db_invoice_script = '''select distinct ctp_request.REQUEST_ID as 'Request ID', CT_JOB_DEFINITION_LANG.NAME as 'Job name', END_TIME as 'Run date', RUN_NUMBER as 'Run number', RECORDS_LOADED as 'Records' from ctp_request join ctp_journal on ctp_request.req_key = ctp_journal.req_key join CT_JOB_RUN on ctp_journal.jr_key = CT_JOB_RUN.jr_key join CT_JOB_DEFINITION_LANG on CT_JOB_RUN.jd_key = CT_JOB_DEFINITION_LANG.jd_key where ctp_request.REQUEST_ID in '''
@@ -100,7 +131,16 @@ db_invoice_payment_script = '''SELECT DISTINCT CTP_REQUEST.REQUEST_ID as 'REQUES
 orderby_script = ' order by CT_JOB_DEFINITION_LANG.NAME, RUN_NUMBER'
 input_files = None
 
-
+design_artifacts = {
+    'US1': 'https://production-us-8n6ihepc.integrationsuite.cfapps.us10.hana.ondemand.com/shell/',
+    'US2': 'https://production-us-2-ctysomoc.integrationsuite.cfapps.us10.hana.ondemand.com/shell/',
+    'US3': 'https://production-us-3-fe00z6ig.integrationsuite.cfapps.us10.hana.ondemand.com/shell/',
+    'US4': 'https://ns-production-us-4-pn18c7zw.it-cpi019.cfapps.us10-002.hana.ondemand.com/itspaces/shell/',
+    'US5': 'https://ns-production-us-5-cmxcebye.integrationsuite.cfapps.us10-002.hana.ondemand.com/shell/',
+    'US6': 'https://ns-production-us-6-416051om.integrationsuite.cfapps.us10-002.hana.ondemand.com/shell/',
+    'US7': 'https://ns-production-us-7-b5z37r8o.integrationsuite.cfapps.us10-002.hana.ondemand.com/shell/',
+    'EMEA1': 'https://ns-production-emea-1-cygt9aoi.integrationsuite.cfapps.eu10-003.hana.ondemand.com/shell/'
+}
 
 
 # Event loop to process GUI events
@@ -126,14 +166,14 @@ while True:
         
         if values['EXPENSE']:
             if values['PAYMENTCHECK']:
-                sg.popup_scrolled(db_report_payment_script + format_ids(ids) + orderby_script, title="DBSelect for Expense Payments")
+                db_popup(ids, db_report_payment_script, "DBSelect for Expense Payments")
             else:
-                sg.popup_scrolled(db_report_script + format_ids(ids) + orderby_script, title="DBSelect for Expense Reports")
+                db_popup(ids, db_report_script, "DBSelect for Expense Reports")
         else:
             if values['PAYMENTCHECK']:
-                sg.popup_scrolled(db_invoice_payment_script + format_ids(ids) + orderby_script, title="DBSelect for Invoice Payments")
+                db_popup(ids, db_invoice_payment_script, "DBSelect for Invoice Payments")
             else:
-                sg.popup_scrolled(db_invoice_script + format_ids(ids) + orderby_script, title="DBSelect for Invoice Reports")
+                db_popup(ids, db_invoice_script, "DBSelect for Invoice Reports")
 
     
     # Perform the search and extraction when 'Search and Extract' button is clicked
@@ -156,16 +196,23 @@ while True:
             ids_found, extracted_lines = extractReportData(ids, files)
 
             # Update table with report IDs not found
-            window['-NOTFOUND-'].update(values=[[elem] for elem in list(set(ids) - set(ids_found))])
+        #    window['-NOTFOUND-'].update(values=[[elem] for elem in list(set(ids) - set(ids_found))])
+            not_found = list(set(ids) - set(ids_found))
+            if(len(not_found) > 0):
+                window['-NOTFOUND-'].update(values=not_found)
+                window['RESULT_TAB'].update(visible=True)
+            else:
+                window['RESULT_TAB'].update(visible=False)
 
             if (len(ids_found) > 0):
-                # Write extracted lines to output file selected by suer
+                # Write extracted lines to output file selected by user
                 with open(output_file, 'w', encoding='utf8') as file:
                     if values['HEADER']:
                         file.write('Header\n')
                     file.writelines(extracted_lines)
 
-                result_popup(str(len(list(set(ids_found)))), str(len(window['-NOTFOUND-'].get())), output_file)
+            #    result_popup(str(len(list(set(ids_found)))), str(len(window['-NOTFOUND-'].get())), output_file)
+                result_popup(str(len(list(set(ids_found)))), str(len(not_found)), output_file)
             else:
                 sg.popup("No reports found!")
         
@@ -181,8 +228,56 @@ while True:
         table_values = window['-NOTFOUND-'].get()
         copyValues = ""
         for i in table_values:
-            copyValues += (i[0] + '\n')
+            copyValues += (i + '\n')
         pyperclip.copy(copyValues)
+
+    #======================================================= Tenant Search
+    
+    if event == 'Search' :
+        entity_code = values['-ENTITYCODE-']
+    #    search_file = window['-SEARCHFILE-'].get()
+        search_file = os.getcwd() + '/Netsuite Packages.txt'
+
+        result = []
+        new_rows = []
+        selected = []
+        with open(search_file, 'r') as file:
+            packages = file.readlines()
+            for package in packages:
+                if entity_code.lower() in package.lower():
+                    result.append(package.split(';')[:2])
+
+        if len(result) > 1:
+            for x in result:
+                temp = x[1].split(' - ')
+                if 'NetSuite' in temp:
+                    temp.remove('NetSuite')
+                if len(temp) == 1:
+                    new_rows.append([x[0], temp[0], ''])
+                else:
+                    new_rows.append([x[0], temp[0], temp[1]])
+            window['-SEARCHRESULTS-'].update(values=new_rows, visible=True)
+        elif len(result) == 1 :
+            selected = result[0]
+            window['tenant'].update(selected[0].strip())
+            window['client'].update(selected[1].strip())
+            window['-SEARCHRESULTS-'].update(values=new_rows, visible=False)
+        else:
+            sg.popup("Client not found!")
+    
+    if '+CLICKED+' in event:
+        selected = result[event[2][0]]
+        window['tenant'].update(selected[0].strip())
+        window['client'].update(selected[1].strip())
+
+
+    if event == 'Open':
+        if window['tenant'].get() != '':
+            webbrowser.open(design_artifacts[selected[0]] + 'design/contentpackage/' + urlFormat(selected[1]) + '?section=ARTIFACTS')
+            time.sleep(5)
+            webbrowser.open(design_artifacts[selected[0]] + 'monitoring/Overview')
+        else:
+            sg.popup("Please search/select for a client!")
 
 # Close the window
 window.close()
