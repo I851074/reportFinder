@@ -236,34 +236,37 @@ while True:
     if event == 'Search' :
         entity_code = values['-ENTITYCODE-']
     #    search_file = window['-SEARCHFILE-'].get()
-        search_file = os.getcwd() + '/Netsuite Packages.txt'
-
-        result = []
-        new_rows = []
-        selected = []
-        with open(search_file, 'r') as file:
-            packages = file.readlines()
-            for package in packages:
-                if entity_code.lower() in package.lower():
-                    result.append(package.split(';')[:2])
-
-        if len(result) > 1:
-            for x in result:
-                temp = x[1].split(' - ')
-                if 'NetSuite' in temp:
-                    temp.remove('NetSuite')
-                if len(temp) == 1:
-                    new_rows.append([x[0], temp[0], ''])
-                else:
-                    new_rows.append([x[0], temp[0], temp[1]])
-            window['-SEARCHRESULTS-'].update(values=new_rows, visible=True)
-        elif len(result) == 1 :
-            selected = result[0]
-            window['tenant'].update(selected[0].strip())
-            window['client'].update(selected[1].strip())
-            window['-SEARCHRESULTS-'].update(values=new_rows, visible=False)
+        if os.path.exists('./Netsuite Packages.txt') != True:
+            sg.popup('Unable to find NetSuite Packages file')
         else:
-            sg.popup("Client not found!")
+            search_file = os.getcwd() + '/Netsuite Packages.txt'
+
+            result = []
+            new_rows = []
+            selected = []
+            with open(search_file, 'r') as file:
+                packages = file.readlines()
+                for package in packages:
+                    if entity_code.lower() in package.lower():
+                        result.append(package.split(';')[:2])
+
+            if len(result) > 1:
+                for x in result:
+                    temp = x[1].split(' - ')
+                    if 'NetSuite' in temp:
+                        temp.remove('NetSuite')
+                    if len(temp) == 1:
+                        new_rows.append([x[0], temp[0], ''])
+                    else:
+                        new_rows.append([x[0], temp[0], temp[1]])
+                window['-SEARCHRESULTS-'].update(values=new_rows, visible=True)
+            elif len(result) == 1 :
+                selected = result[0]
+                window['tenant'].update(selected[0].strip())
+                window['client'].update(selected[1].strip())
+                window['-SEARCHRESULTS-'].update(values=new_rows, visible=False)
+            else:
+                sg.popup("Client not found!")
     
     if '+CLICKED+' in event:
         selected = result[event[2][0]]
