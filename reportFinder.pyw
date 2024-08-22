@@ -55,26 +55,30 @@ def extractReportData(ids, files):
                 # Read each line in the file
                 lines = file.readlines()
                 for line in lines:
-                    found = False
                     for id in ids:
                         if id in line:
-                            found = True
-                            ids_found.append(id)
-                    if found:
-                        extracted_lines.append(line)
-                        
+                            extracted_lines.append(line)
+                            if id not in ids_found:
+                                ids_found.append(id)                    
     return ids_found, extracted_lines
 
 def urlFormat(string):
     formatted = re.sub('[^A-Za-z0-9]+', '', string)
     return formatted
 
+def formatNotFound(notFoundList):
+    temp = ""
+    tempList = list(set(notFoundList))
+    for i in tempList:
+            temp += (i + '\n')
+    return temp
+
 # GUI Layout: User input for report IDs, output file selection, function buttons
 left_part = [
     [sg.Text('Enter the IDs to search:', font=("Arial Bold", 10))],
     [sg.Multiline(key='-IDS-', expand_x=True, expand_y=True, size=(30,15))],
-    [sg.Radio("Expense", "type", key='EXPENSE', default=True),
-     sg.Radio("Invoice", "type", key='INVOICE'), sg.Push(),
+    [sg.Radio("Expense", "reportFinder", key='EXPENSE', default=True),
+     sg.Radio("Invoice", "reportFinder", key='INVOICE'), sg.Push(),
      sg.Checkbox("Payment File", key='PAYMENTCHECK'),
      sg.Push(), sg.Button("Generate DBSelect")],
      [sg.HorizontalSeparator()],
@@ -93,31 +97,39 @@ tenant_search = [
     [sg.Text('Tenant: '), sg.Text(key='tenant')],
     [sg.Text('Client: '), sg.Text(key='client')],
     [sg.Button('Search'), sg.Button('Open')],
-    [sg.Table(values=[], headings=['Tenant', 'Client Name', 'Entity'], key='-SEARCHRESULTS-', justification='center', enable_click_events=True, expand_x=True, enable_events=True, num_rows=15, visible=False)]
+    [sg.Table(values=[], headings=['Tenant', 'Client Name', 'Entity'], key='-SEARCHRESULTS-', justification='center', enable_click_events=True, expand_x=True, enable_events=False, num_rows=15, visible=False)]
 
 ]
 
 # GUI Layout: Table/List displaying report IDs NOT found
-right_part = [[sg.Table(values=[], headings=['Report IDs Not Found'], 
-              auto_size_columns=False, 
-              display_row_numbers=False, 
-              key='-NOTFOUND-', 
-              expand_x=True, 
-              expand_y=True,
-              enable_events=True)],
+right_part = [
+    [sg.Text('Found:', font=("Arial Bold", 10))],
+    [sg.Multiline(key='-FOUND-', disabled=True, expand_x=True, expand_y=True)],
+    [sg.HorizontalSeparator()],
+    [sg.Text('Not Found:', font=("Arial Bold", 10))],
+    [sg.Multiline(key='-NOTFOUND-', disabled=True, expand_x=True, expand_y=True)],
     [sg.Push(),
-     sg.Button('Copy')]
+     sg.Button('Copy All')]
 ]
 
-
-
-
+firstOption = [
+    [sg.Radio("Expense", "type", key='EXPENSE_FORMAT', default=True),
+     sg.Radio("Invoice", "type", key='INVOICE_FORMAT'), sg.Push()],
+    #[sg.Text("ID:")], [sg.Input(key='-ID-', expand_x=True)],
+    #[sg.Text("Error:")], [sg.Input(key='-ERROR-', expand_x=True)],
+    [sg.Multiline(key='-TRACER-', expand_x=True, expand_y=True, size=(55,20))],
+    [sg.Button('Generate')]
+    #[sg.Button("Add"),
+    # sg.Button("Compile"),
+    # sg.Button('Reset')]
+]
 
 tab_layout = [
     [sg.TabGroup([
         [sg.Tab('Tenant Search', tenant_search),
          sg.Tab('Report Finder', left_part),
-         sg.Tab('Results', right_part, visible=False, key='RESULT_TAB')
+         sg.Tab('Results', right_part, visible=False, key='RESULT_TAB'),
+         sg.Tab('BTP Format', firstOption),
         ]
     ])]
 ]
@@ -142,6 +154,7 @@ design_artifacts = {
     'EMEA1': 'https://ns-production-emea-1-cygt9aoi.integrationsuite.cfapps.eu10-003.hana.ondemand.com/shell/'
 }
 
+not_found_result = []
 
 # Event loop to process GUI events
 while True:
@@ -197,12 +210,14 @@ while True:
 
             # Update table with report IDs not found
         #    window['-NOTFOUND-'].update(values=[[elem] for elem in list(set(ids) - set(ids_found))])
-            not_found = list(set(ids) - set(ids_found))
-            if(len(not_found) > 0):
-                window['-NOTFOUND-'].update(values=not_found)
+            not_found_values = list(set(ids) - set(ids_found))
+            if(len(not_found_values) > 0):
+                window['-FOUND-'].update(formatNotFound(ids_found))
+                window['-NOTFOUND-'].update(formatNotFound(not_found_values))
                 window['RESULT_TAB'].update(visible=True)
             else:
                 window['RESULT_TAB'].update(visible=False)
+                not_found_values = []
 
             if (len(ids_found) > 0):
                 # Write extracted lines to output file selected by user
@@ -212,7 +227,7 @@ while True:
                     file.writelines(extracted_lines)
 
             #    result_popup(str(len(list(set(ids_found)))), str(len(window['-NOTFOUND-'].get())), output_file)
-                result_popup(str(len(list(set(ids_found)))), str(len(not_found)), output_file)
+                result_popup(str(len(list(set(ids_found)))), str(len(not_found_values)), output_file)
             else:
                 sg.popup("No reports found!")
         
@@ -224,12 +239,8 @@ while True:
                 sg.popup("Please select extracts to search!")
 
     # Copy IDs from Not found table
-    if event == 'Copy':
-        table_values = window['-NOTFOUND-'].get()
-        copyValues = ""
-        for i in table_values:
-            copyValues += (i + '\n')
-        pyperclip.copy(copyValues)
+    if event == 'Copy All':
+        pyperclip.copy(values['-NOTFOUND-'])
 
     #======================================================= Tenant Search
     
@@ -269,9 +280,10 @@ while True:
                 sg.popup("Client not found!")
     
     if '+CLICKED+' in event:
-        selected = result[event[2][0]]
-        window['tenant'].update(selected[0].strip())
-        window['client'].update(selected[1].strip())
+        if((event[2][0] != None) & (event[2][1] != None)):
+            selected = result[event[2][0]]
+            window['tenant'].update(selected[0].strip())
+            window['client'].update(selected[1].strip())
 
 
     if event == 'Open':
@@ -281,6 +293,34 @@ while True:
             webbrowser.open(design_artifacts[selected[0]] + 'monitoring/Overview')
         else:
             sg.popup("Please search/select for a client!")
+
+    # =========================================== BTP Format
+    if event == 'Generate':
+        inputData = values['-TRACER-']
+        text = inputData.split('\n')
+        buffer = {}
+        tempID = ''
+        tempError = ''
+        compiledError = ''
+        for x in text:
+            if 'mapping starts' in x:
+            #    print(x.split(': ')[2].split(' ')[0])
+                tempID = x.split(': ')[2].split(' ')[0]
+            if 'NetSuite posting error' in x:
+            #print(x.split(': ')[4].split('|')[2].split('.')[0])
+            #print(x + '\n')
+            #print(re.findall(r'(?<=\|).+?(?=\,)', x)[0].split('|')[1])
+                if (tempID != ''):
+                    tempError = re.findall(r'(?<=\|).+?(?=\,)', x)[0].split('|')[1]
+                    buffer[tempID] = tempError
+
+        for id, error in buffer.items():
+            if values['EXPENSE_FORMAT']:
+                compiledError += ('Report ID: ' + id + '\nError: ' + error + '\n\n')
+            if values['INVOICE_FORMAT']:
+                compiledError += ('Invoice ID: ' + id + '\nError: ' + error + '\n\n')
+
+        sg.popup_scrolled(compiledError, title='Formatted Error Message')
 
 # Close the window
 window.close()
