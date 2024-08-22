@@ -136,6 +136,7 @@ tab_layout = [
 # Create the window
 window = sg.Window('Report Finder Tool', tab_layout, resizable=False)
 
+# Global variables
 db_report_script = '''select distinct ct_report.REPORT_ID as 'Report ID', CT_JOB_DEFINITION_LANG.NAME as 'Job name', END_TIME as 'Run date', RUN_NUMBER as 'Run number', RECORDS_LOADED as 'Records' from ct_report join ct_journal on ct_report.rpt_key = ct_journal.rpt_key join CT_JOB_RUN on ct_journal.jr_key = CT_JOB_RUN.jr_key join CT_JOB_DEFINITION_LANG on CT_JOB_RUN.jd_key = CT_JOB_DEFINITION_LANG.jd_key where ct_report.REPORT_ID in '''
 db_invoice_script = '''select distinct ctp_request.REQUEST_ID as 'Request ID', CT_JOB_DEFINITION_LANG.NAME as 'Job name', END_TIME as 'Run date', RUN_NUMBER as 'Run number', RECORDS_LOADED as 'Records' from ctp_request join ctp_journal on ctp_request.req_key = ctp_journal.req_key join CT_JOB_RUN on ctp_journal.jr_key = CT_JOB_RUN.jr_key join CT_JOB_DEFINITION_LANG on CT_JOB_RUN.jd_key = CT_JOB_DEFINITION_LANG.jd_key where ctp_request.REQUEST_ID in '''
 db_report_payment_script = '''SELECT DISTINCT CT_REPORT.REPORT_ID as 'REPORT ID', CT_JOB_DEFINITION_LANG.NAME as 'JOB NAME', END_TIME as 'RUN DATE', RUN_NUMBER as 'RUN NUMBER', RECORDS_LOADED as 'RECORDS' FROM CT_REPORT JOIN CT_EFT_ITEM_PAYEE on CT_REPORT.RPT_KEY = CT_EFT_ITEM_PAYEE.RPT_KEY JOIN CT_EFT_PAYMENT_JOURNAL on CT_EFT_ITEM_PAYEE.EFT_PD_KEY = CT_EFT_PAYMENT_JOURNAL.EFT_PD_KEY JOIN CT_JOB_RUN on CT_EFT_PAYMENT_JOURNAL.JR_KEY = CT_JOB_RUN.JR_KEY JOIN CT_JOB_DEFINITION_LANG on CT_JOB_RUN.JD_KEY = CT_JOB_DEFINITION_LANG.JD_KEY WHERE CT_REPORT.REPORT_ID in '''
@@ -155,6 +156,7 @@ design_artifacts = {
 }
 
 not_found_result = []
+selected = []
 
 # Event loop to process GUI events
 while True:
@@ -256,7 +258,6 @@ while True:
             search_file = os.getcwd() + '/Netsuite Packages.txt'
             result = []
             new_rows = []
-            selected = []
             with open(search_file, 'r') as file:
                 packages = file.readlines()
                 for package in packages:
@@ -291,7 +292,7 @@ while True:
     if event == 'Open':
         if (window['tenant'].get() != '') & (selected != []):
             webbrowser.open(design_artifacts[selected[0]] + 'design/contentpackage/' + urlFormat(selected[1]) + '?section=ARTIFACTS')
-            time.sleep(5)
+            time.sleep(10)
             webbrowser.open(design_artifacts[selected[0]] + 'monitoring/Overview')
         else:
             sg.popup("Please search/select for a client!")
