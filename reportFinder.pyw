@@ -246,12 +246,14 @@ while True:
     
     if event == 'Search' :
         entity_code = values['-ENTITYCODE-']
+        window['tenant'].update('')
+        window['client'].update('')
+        window['-SEARCHRESULTS-'].update(values=[], visible=False)
     #    search_file = window['-SEARCHFILE-'].get()
         if os.path.exists('./Netsuite Packages.txt') != True:
             sg.popup('Unable to find NetSuite Packages file')
         else:
             search_file = os.getcwd() + '/Netsuite Packages.txt'
-
             result = []
             new_rows = []
             selected = []
@@ -287,7 +289,7 @@ while True:
 
 
     if event == 'Open':
-        if window['tenant'].get() != '':
+        if (window['tenant'].get() != '') & (selected != []):
             webbrowser.open(design_artifacts[selected[0]] + 'design/contentpackage/' + urlFormat(selected[1]) + '?section=ARTIFACTS')
             time.sleep(5)
             webbrowser.open(design_artifacts[selected[0]] + 'monitoring/Overview')
